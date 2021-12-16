@@ -5,6 +5,7 @@
   
 
   linux/include/linux/rbtree.h
+  Userspace GNUC porting:	Andrea Di Iorio
 
   To use rbtrees you'll have to implement your own insert and search cores.
   This will avoid us to use callbacks and to drop drammatically performances.

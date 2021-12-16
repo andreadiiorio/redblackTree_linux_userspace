@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
+//Userspace GNUC porting:	Andrea Di Iorio
 #include <stdlib.h>
 //#include <linux/module.h>         //TODO LESS_DEPENDENCIES
 //#include <linux/moduleparam.h>    //TODO LESS_DEPENDENCIES

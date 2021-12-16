@@ -7,6 +7,7 @@
 
 
   linux/lib/rbtree.c
+  userspace GNUC porting:	Andrea Di Iorio
 */
 
 #include <linux/rbtree_augmented.h>
