@@ -27,8 +27,9 @@ struct test_node {
 
 	/* following fields used for testing augmented rbtree functionality */
 	u32 val;
-	u32 augmented;
+	u32 augmented;	///only for AUGMENTED_TEST
 };
+#define NODE_VAL(node) ((node)->val)
 
 static struct rb_root_cached root = RB_ROOT_CACHED;
 static struct test_node *nodes = NULL;
@@ -81,9 +82,14 @@ static inline void erase_cached(struct test_node *node, struct rb_root_cached *r
 	rb_erase_cached(&node->rb, root);
 }
 
-
-#define NODE_VAL(node) ((node)->val)
-
+///rbtree_test_init -> main globalized vars for easyness subtest divisio, n
+static int i, j;
+static struct rb_node *node;
+static cycles_t time1, time2, time;
+///headers of moved funcs
+static void init(void);
+static void check(int nr_nodes);
+#ifdef AUGMENTED_TEST
 RB_DECLARE_CALLBACKS_MAX(static, augment_callbacks,
 			 struct test_node, rb, u32, augmented, NODE_VAL)
 
@@ -150,6 +156,79 @@ static void erase_augmented_cached(struct test_node *node,
 {
 	rb_erase_augmented_cached(&node->rb, root, &augment_callbacks);
 }
+static void check_augmented(int nr_nodes)
+{
+	struct rb_node *rb;
+
+	check(nr_nodes);
+	for (rb = rb_first(&root.rb_root); rb; rb = rb_next(rb)) {
+		struct test_node *node = rb_entry(rb, struct test_node, rb);
+		u32 subtree, max = node->val;
+		if (node->rb.rb_left) {
+			subtree = rb_entry(node->rb.rb_left, struct test_node,
+					   rb)->augmented;
+			if (max < subtree)
+				max = subtree;
+		}
+		if (node->rb.rb_right) {
+			subtree = rb_entry(node->rb.rb_right, struct test_node,
+					   rb)->augmented;
+			if (max < subtree)
+				max = subtree;
+		}
+		WARN_ON_ONCE(node->augmented != max);
+	}
+}
+static void rbtree_augmented_test(){
+	printf("augmented rbtree testing");
+
+	init();
+
+	time1 = get_cycles();
+
+	for (i = 0; i < perf_loops; i++) {
+		for (j = 0; j < nnodes; j++)
+			insert_augmented(nodes + j, &root);
+		for (j = 0; j < nnodes; j++)
+			erase_augmented(nodes + j, &root);
+	}
+
+	time2 = get_cycles();
+	time = time2 - time1;
+
+	time = div_u64(time, perf_loops);
+	printf(" -> test 1 (latency of nnodes insert+delete): %llu cycles\n", (unsigned long long)time);
+
+	time1 = get_cycles();
+
+	for (i = 0; i < perf_loops; i++) {
+		for (j = 0; j < nnodes; j++)
+			insert_augmented_cached(nodes + j, &root);
+		for (j = 0; j < nnodes; j++)
+			erase_augmented_cached(nodes + j, &root);
+	}
+
+	time2 = get_cycles();
+	time = time2 - time1;
+
+	time = div_u64(time, perf_loops);
+	printf(" -> test 2 (latency of nnodes cached insert+delete): %llu cycles\n", (unsigned long long)time);
+
+	for (i = 0; i < check_loops; i++) {
+		init();
+		for (j = 0; j < nnodes; j++) {
+			check_augmented(j);
+			insert_augmented(nodes + j, &root);
+		}
+		for (j = 0; j < nnodes; j++) {
+			check_augmented(nnodes - j);
+			erase_augmented(nodes + j, &root);
+		}
+		check_augmented(0);
+	}
+
+}
+#endif	//AUGMENTED_TEST
 
 static void init(void)
 {
@@ -220,44 +299,10 @@ static void check(int nr_nodes)
 	check_postorder_foreach(nr_nodes);
 }
 
-static void check_augmented(int nr_nodes)
-{
-	struct rb_node *rb;
 
-	check(nr_nodes);
-	for (rb = rb_first(&root.rb_root); rb; rb = rb_next(rb)) {
-		struct test_node *node = rb_entry(rb, struct test_node, rb);
-		u32 subtree, max = node->val;
-		if (node->rb.rb_left) {
-			subtree = rb_entry(node->rb.rb_left, struct test_node,
-					   rb)->augmented;
-			if (max < subtree)
-				max = subtree;
-		}
-		if (node->rb.rb_right) {
-			subtree = rb_entry(node->rb.rb_right, struct test_node,
-					   rb)->augmented;
-			if (max < subtree)
-				max = subtree;
-		}
-		WARN_ON_ONCE(node->augmented != max);
-	}
-}
-
-///static int __init rbtree_test_init(void) //TODO LESS_DEPENDENCIES
-int main()
-{
-	int i, j;
-	cycles_t time1, time2, time;
-	struct rb_node *node;
-
-	nodes = calloc(nnodes, sizeof(*nodes)); ///, GFP_KERNEL); //TODO LESS_DEPENDENCIES
-	if (!nodes)
-		return -ENOMEM;
-
+///WRAP TESTS IN FUNCTIONS
+static void rbtree_test(){
 	printf("rbtree testing");
-
-	srandom(199695); ///TODO LESS_DEPENDENCIES prandom_seed_state(&rnd, 3141592653589793238ULL);
 	init();
 
 	time1 = get_cycles();
@@ -321,6 +366,10 @@ int main()
 	printf(" -> test 4 (latency to fetch first node)\n");
 	printf("        non-cached: %llu cycles\n", (unsigned long long)time);
 
+}
+
+static void rbtree_cached_test(){
+	printf("rbtree_cached testing");
 	time1 = get_cycles();
 
 	for (i = 0; i < perf_loops; i++)
@@ -349,63 +398,32 @@ int main()
 		check(0);
 	}
 
-	printf("augmented rbtree testing");
+}
+///static int __init rbtree_test_init(void) //TODO LESS_DEPENDENCIES
+int main()
+{
 
-	init();
+	nodes = calloc(nnodes, sizeof(*nodes)); ///, GFP_KERNEL); //TODO LESS_DEPENDENCIES
+	if (!nodes)
+		return -ENOMEM;
 
-	time1 = get_cycles();
+	srandom(199695); ///TODO LESS_DEPENDENCIES prandom_seed_state(&rnd, 3141592653589793238ULL);
 
-	for (i = 0; i < perf_loops; i++) {
-		for (j = 0; j < nnodes; j++)
-			insert_augmented(nodes + j, &root);
-		for (j = 0; j < nnodes; j++)
-			erase_augmented(nodes + j, &root);
-	}
-
-	time2 = get_cycles();
-	time = time2 - time1;
-
-	time = div_u64(time, perf_loops);
-	printf(" -> test 1 (latency of nnodes insert+delete): %llu cycles\n", (unsigned long long)time);
-
-	time1 = get_cycles();
-
-	for (i = 0; i < perf_loops; i++) {
-		for (j = 0; j < nnodes; j++)
-			insert_augmented_cached(nodes + j, &root);
-		for (j = 0; j < nnodes; j++)
-			erase_augmented_cached(nodes + j, &root);
-	}
-
-	time2 = get_cycles();
-	time = time2 - time1;
-
-	time = div_u64(time, perf_loops);
-	printf(" -> test 2 (latency of nnodes cached insert+delete): %llu cycles\n", (unsigned long long)time);
-
-	for (i = 0; i < check_loops; i++) {
-		init();
-		for (j = 0; j < nnodes; j++) {
-			check_augmented(j);
-			insert_augmented(nodes + j, &root);
-		}
-		for (j = 0; j < nnodes; j++) {
-			check_augmented(nnodes - j);
-			erase_augmented(nodes + j, &root);
-		}
-		check_augmented(0);
-	}
+	rbtree_test();
+	rbtree_cached_test();
+	#ifdef AUGMENTED_TEST
+	rbtree_augmented_test();
+	#endif
 
 	kfree(nodes);
-
 	//return -EAGAIN; /* Fail will directly unload the module */
 	return 0;
 }
-
-static void rbtree_test_exit(void)	   ///__exit   //TODO LESS_DEPENDENCIES
+/*//TODO LESS_DEPENDENCIES
+static void rbtree_test_exit(void)	   ///__exit   
 {
 	printf("test exit\n");
-}
+}*/
 
 /**module_init(rbtree_test_init)
 module_exit(rbtree_test_exit)
