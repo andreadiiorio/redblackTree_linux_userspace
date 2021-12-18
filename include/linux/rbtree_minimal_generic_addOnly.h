@@ -4,7 +4,7 @@
   (C) 1999  Andrea Arcangeli <andrea@suse.de>
   
 
-  Userspace GNUC porting & del augmented deps:	Andrea Di Iorio
+  Userspace GNUC porting,del augmented deps and minimalizing for few OPs only:	Andrea Di Iorio
   linux/include/linux/rbtree.h
 
   To use rbtrees you'll have to implement your own insert and search cores.
@@ -14,6 +14,22 @@
 
   See Documentation/core-api/rbtree.rst for documentation and samples.
 */
+/* Copyright Andrea Di Iorio 2021
+ * This file is part of RedBlackTree_linux_userspace
+ * RedBlackTree_linux_userspace is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * RedBlackTree_linux_userspace is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with RedBlackTree_linux_userspace.  If not, see <http://www.gnu.org/licenses/>.
+ */ 
+
 
 #ifndef	_LINUX_RBTREE_H
 #define	_LINUX_RBTREE_H
